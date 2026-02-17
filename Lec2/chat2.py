@@ -23,11 +23,12 @@ Output: It is not maths.
 
 """
 
-esult = client.chat.completions.create(
+result = client.chat.completions.create(
 
-    model = "gpt-4",
+    model = "gpt-5-mini",
     messages=[
         {"role": "user","content": system_prompt},
         {"role": "user","content": "what is 2 + 2 * 0"}
     ]
 )
+print(result.choices[0].message.content)
