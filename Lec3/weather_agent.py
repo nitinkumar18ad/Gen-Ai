@@ -2,12 +2,42 @@ import json
 import requests
 from dotenv import load_dotenv
 from openai import OpenAI
+import os
 
 # ------------------ INIT ------------------
 load_dotenv()
 client = OpenAI()
 
-# ------------------ TOOL 1: WEATHER ------------------
+# ------------------ TOOL: SAFE COMMAND ------------------
+def run_command(command):
+    print(f"🔧 Tool called: run_command({command})")
+
+    # block dangerous commands
+    blocked = ["del", "rm", "shutdown", "format"]
+
+    if any(b in command.lower() for b in blocked):
+        return "Error: Unsafe command"
+
+    result = os.system(command)
+
+    if result == 0:
+        return "Command executed successfully"
+    else:
+        return "Error executing command"
+
+
+# ------------------ TOOL: CREATE FILE ------------------
+def create_file(filename: str):
+    print(f"🔧 Tool called: create_file({filename})")
+    try:
+        with open(filename, "w") as f:
+            pass
+        return f"{filename} created successfully"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+# ------------------ TOOL: WEATHER ------------------
 def get_weather(city: str):
     print(f"🔧 Tool called: get_weather({city})")
 
@@ -28,13 +58,13 @@ def get_weather(city: str):
 
         temp = weather_res["current_weather"]["temperature"]
 
-        return str(temp)  # return only number for easy conversion
+        return str(temp)
 
     except Exception as e:
         return f"Error: {str(e)}"
 
 
-# ------------------ TOOL 2: CONVERSION ------------------
+# ------------------ TOOL: CONVERSION ------------------
 def celsius_to_fahrenheit(temp: str):
     print(f"🔧 Tool called: celsius_to_fahrenheit({temp})")
 
@@ -55,6 +85,14 @@ available_tools = {
     "celsius_to_fahrenheit": {
         "fn": celsius_to_fahrenheit,
         "description": "Converts Celsius to Fahrenheit"
+    },
+    "run_command": {
+        "fn": run_command,
+        "description": "Executes safe system commands"
+    },
+    "create_file": {
+        "fn": create_file,
+        "description": "Creates a file in current directory"
     }
 }
 
@@ -68,6 +106,8 @@ Rules:
 - Return JSON only
 - One step at a time
 - Always use tools if needed
+- Do NOT use OS commands like touch for file creation
+- Use create_file tool to create files
 - If user asks for Fahrenheit, convert Celsius using celsius_to_fahrenheit
 
 JSON format:
@@ -81,11 +121,12 @@ JSON format:
 Available tools:
 - get_weather(city) → returns temperature in Celsius
 - celsius_to_fahrenheit(temp) → converts to Fahrenheit
+- run_command(command) → executes safe system commands
+- create_file(filename) → creates a file
 
 Example:
 User: Temperature of Bangalore in Fahrenheit?
 
-Output:
 {"step":"plan","content":"User wants temperature in Fahrenheit"}
 {"step":"action","function":"get_weather","input":"Bangalore"}
 {"step":"observe","output":"30"}
@@ -130,6 +171,8 @@ while True:
 
         if tool_name in available_tools:
             output = available_tools[tool_name]["fn"](tool_input)
+
+            print(f"🔍: {output}")   # show tool output
 
             observation = {
                 "step": "observe",
