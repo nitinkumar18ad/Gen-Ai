@@ -1,1 +1,1 @@
-microsoft/DialoGPT-small
+model_name = "gpt2-small"

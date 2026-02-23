@@ -1,28 +1,53 @@
-import os 
 import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
-os.environ["HF_TOKEN"] ="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" 
-
-model_name = "bert-base-uncased"
-
-from transformers import AutoTokenizer
+# ------------------ LOAD MODEL ------------------
+model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
+tokenizer.pad_token = tokenizer.eos_token
 
-print(tokenizer("Hello,how are you?"))
-print(tokenizer.get_vocab())
+model = AutoModelForCausalLM.from_pretrained(model_name)
 
-input_tokens = tokenizer("Hello,how are you")["input_ids"]
-print(input_tokens)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = model.to(device)
 
-from transformers import AutoModelForCausalLM
+model.eval()
+torch.set_grad_enabled(False)
 
-model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    torch_dtype=torch.bfloat16
+# ------------------ INPUT ------------------
+prompt = "The capital of India is"
+
+inputs = tokenizer(
+    prompt,
+    return_tensors="pt",
+    padding=True,
+    truncation=True
 )
 
-from transformers import pipeline
-gen_pipeline = pipeline("text-generation",model=model, tokenizer=tokenizer)
+# Move to device
+inputs = {k: v.to(device) for k, v in inputs.items()}
 
-gen_pipeline("Hey there", max_new_tokens=15)
+# ------------------ GENERATE ------------------
+output_ids = model.generate(
+    inputs["input_ids"],
+    attention_mask=inputs["attention_mask"],   # IMPORTANT
+
+    max_new_tokens=30,
+
+    do_sample=True,
+    temperature=0.8,
+    top_k=50,
+    top_p=0.9,
+
+    repetition_penalty=1.3,
+    no_repeat_ngram_size=3,
+
+    eos_token_id=tokenizer.eos_token_id,
+    pad_token_id=tokenizer.eos_token_id
+)
+
+# ------------------ DECODE ------------------
+output = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+
+print("\nOutput:\n", output)
