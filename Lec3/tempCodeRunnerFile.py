@@ -1,1 +1,1 @@
-model_name = "gpt2-small"
+generator = pipeline("text-generation", model="distilgpt2")
