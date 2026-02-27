@@ -1,0 +1,15 @@
+# Model files
+fine_tuned_model/
+results/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Large files
+*.bin
+*.pt
+*.ckpt
+
+# Virtual environment
+venv/
