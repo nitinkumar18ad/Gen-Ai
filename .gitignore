@@ -1,3 +1,31 @@
 venv
 
-students.json
+
+
+_pycache_
+
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Env files
+.env
+
+# Models / large files
+*.bin
+*.pt
+*.pth
+*.safetensors
+
+# Data
+data/
+datasets/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
