@@ -21,14 +21,7 @@ embeddings = OpenAIEmbeddings(
     api_key="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"
 )
 
-# Vector_store = QdrantVectorStore.from_documents(
-#     documents= [],
-#     url="http://localhost:6333",
-#     collection_name="larning_langchain",
-#     embedding=embeddings
-# )
 
-# Vector_store.add_documents(documents=split_docs)
 print("Injection done")
 
 retriver = QdrantVectorStore.from_existing_collection(
