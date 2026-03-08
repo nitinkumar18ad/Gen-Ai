@@ -1,44 +1,38 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from fastapi.responses import PlainTextResponse
-from openai import OpenAI
-import os
+import google.generativeai as genai
 
 app = FastAPI()
 
-# Initialize OpenAI client (use environment variable for security)
-client = OpenAI(api_key=os.getenv("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"))
+# Add your Gemini API key
+genai.configure(api_key="YOUR_GEMINI_API_KEY")
 
-# Request body structure
+# Load Gemini model
+model = genai.GenerativeModel("gemini-1.5-pro")
+
+# Request format
 class Query(BaseModel):
     prompt: str
 
 
-@app.post("/query", response_class=PlainTextResponse)
-async def handle_query(query: Query):
+@app.post("/generate")
+async def generate_code(query: Query):
 
-    # Print user query in terminal
-    print("User query:", query.prompt)
+    system_prompt = f"""
+You are an AI coding assistant like Cursor.
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a coding assistant like Cursor. Help write, fix and explain code."
-                },
-                {
-                    "role": "user",
-                    "content": query.prompt
-                }
-            ]
-        )
+Rules:
+1. First give the code.
+2. Use clean code blocks.
+3. Then give a short explanation.
+4. Format output clearly.
 
-        result = response.choices[0].message.content.strip()
+User request:
+{query.prompt}
+"""
 
-        # Return clean output (not JSON)
-        return result
+    response = model.generate_content(system_prompt)
 
-    except Exception as e:
-        return f"Error: {str(e)}"
+    return {
+        "response": response.text
+    }
