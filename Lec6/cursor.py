@@ -1,38 +1,57 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import google.generativeai as genai
+from fastapi.responses import PlainTextResponse
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 app = FastAPI()
 
-# Add your Gemini API key
-genai.configure(api_key="YOUR_GEMINI_API_KEY")
+# Read API key from environment variable
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Load Gemini model
-model = genai.GenerativeModel("gemini-1.5-pro")
-
-# Request format
+# Request body structure
 class Query(BaseModel):
     prompt: str
 
 
-@app.post("/generate")
-async def generate_code(query: Query):
+@app.post("/query", response_class=PlainTextResponse)
+async def handle_query(query: Query):
 
-    system_prompt = f"""
-You are an AI coding assistant like Cursor.
+    # Print user query in terminal
+    print(f"User Query: {query.prompt}")
 
-Rules:
-1. First give the code.
-2. Use clean code blocks.
-3. Then give a short explanation.
-4. Format output clearly.
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,   # cleaner and more deterministic output
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a coding assistant like Cursor. "
+                        "Give clear, direct answers. Return only the useful output."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": query.prompt
+                }
+            ]
+        )
 
-User request:
-{query.prompt}
-"""
+        # Extract only the assistant message
+        output = response.choices[0].message.content
 
-    response = model.generate_content(system_prompt)
+        # Clean output
+        if output:
+            output = output.strip()
 
-    return {
-        "response": response.text
-    }
+        return output
+
+    except Exception as e:
+        print("Error:", e)
+        return f"Error: {str(e)}"
