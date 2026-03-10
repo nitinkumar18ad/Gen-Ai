@@ -22,7 +22,7 @@ class Query(BaseModel):
 async def handle_query(query: Query):
 
     # Print user query in terminal
-    print(f"User Query: {query.prompt}")
+    print(f"User Query:- {query.prompt}")
 
     try:
         response = client.chat.completions.create(
