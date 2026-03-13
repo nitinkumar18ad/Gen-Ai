@@ -8,12 +8,19 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# ---------------------------
+# DATABASE CONFIG
+# ---------------------------
+
 QDRANT_HOST = "localhost"
 
 NEO4J_URL = "bolt://localhost:7687"
 NEO4J_USERNAME = "neo4j"
 NEO4J_PASSWORD = "reform-william-center-vibrate-press-5829"
 
+# ---------------------------
+# MEM0 CONFIG
+# ---------------------------
 
 config = {
     "version": "v1.1",
@@ -51,54 +58,67 @@ config = {
 mem_client = Memory.from_config(config)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
+# ---------------------------
+# SYSTEM PROMPT
+# ---------------------------
 
-def split_preferences(message):
-    """
-    Break sentences like:
-    'I like React, JavaScript and MongoDB'
-    'I like Roti with Chutni'
-    into separate statements.
+SYSTEM_PROMPT = """
+You are a helpful AI assistant.
 
-    """
+Use the user's stored memories when relevant to answer questions.
+Each memory has a similarity score. Higher score means more relevant.
+
+Use those memories naturally in your response.
+"""
+
+# ---------------------------
+# STORE MULTIPLE MEMORIES
+# ---------------------------
+
+def store_memory(message):
+
     message = message.replace(" and ", ",")
     items = [i.strip() for i in message.split(",") if i.strip()]
 
-    # convert to individual facts
-    facts = []
     for item in items:
         if not item.lower().startswith("i"):
-            facts.append(f"I like {item}")
-        else:
-            facts.append(item)
+            item = f"I like {item}"
 
-    return facts
-
-
-def store_memory(message):
-    facts = split_preferences(message)
-
-    for fact in facts:
         mem_client.add(
-            [{"role": "user", "content": fact}],
+            [{"role": "user", "content": item}],
             user_id="NKY"
         )
 
 
+# ---------------------------
+# CHAT FUNCTION
+# ---------------------------
+
 def chat(message):
 
+    # Retrieve relevant memories
     mem_result = mem_client.search(
         query=message,
         user_id="NKY"
     )
 
-    print("\nMEMORY:")
-    print(mem_result)
-    print()
+    # Build memory context with score
+    memory_context = ""
 
+    for mem in mem_result["results"]:
+        memory_context += f"""
+Memory: {mem['memory']}
+Score: {mem['score']}
+"""
+
+    print("\nMEMORY RETRIEVED:")
+    print(memory_context)
+
+    # Messages sent to the LLM
     messages = [
         {
             "role": "system",
-            "content": f"User memories: {mem_result}"
+            "content": SYSTEM_PROMPT + "\n\nUser Memories:\n" + memory_context
         },
         {
             "role": "user",
@@ -106,6 +126,7 @@ def chat(message):
         }
     ]
 
+    # Generate response
     result = openai_client.chat.completions.create(
         model="gpt-4.1",
         messages=messages
@@ -113,11 +134,15 @@ def chat(message):
 
     reply = result.choices[0].message.content
 
-    # store memory AFTER response
+    # Store memory
     store_memory(message)
 
     return reply
 
+
+# ---------------------------
+# CHAT LOOP
+# ---------------------------
 
 while True:
 
