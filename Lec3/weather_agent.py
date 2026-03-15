@@ -3,10 +3,12 @@ import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
+from langsmith.wrappers import wrap_openai 
+
 
 # ------------------ INIT ------------------
 load_dotenv()
-client = OpenAI()
+client = wrap_openai(OpenAI())
 
 # ------------------ TOOL: SAFE COMMAND ------------------
 def run_command(command):
@@ -190,6 +192,6 @@ while True:
         continue
 
     # ------------------ OUTPUT ------------------
-    if step == "output":
+    if step == "output:-":
         print(f"🤖: {parsed_output.get('content')}")
         break
