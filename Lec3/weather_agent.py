@@ -186,7 +186,7 @@ while True:
                 "content": json.dumps(observation)
             })
         else:
-            print("❌ Unknown tool:", tool_name)
+            print("❌ Unknown tool:-", tool_name)
             break
 
         continue
