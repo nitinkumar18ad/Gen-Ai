@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import os
 from langsmith.wrappers import wrap_openai 
+from langfuse import Langfuse
 
 
 # ------------------ INIT ------------------
