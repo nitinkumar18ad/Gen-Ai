@@ -1,93 +1,235 @@
-"""
-Weather Agent with Langfuse Tracing + OpenAI
--------------------------------------------
-- Uses OpenAI for response generation
-- Uses Langfuse for tracing/logging
-"""
-
-import os
+import json
+import requests
 from dotenv import load_dotenv
-from openai import OpenAI
-from langfuse import Langfuse
+from langfuse.openai import OpenAI                      # Drop-in Langfuse wrapper for OpenAI
+from langfuse import get_client, propagate_attributes   # v3+ API — Langfuse() no longer has .trace()
+import os
 
-# ─────────────────────────────────────────────
-# Load environment variables
-# ─────────────────────────────────────────────
+# ------------------ INIT ------------------
+# Required .env variables:
+#   OPENAI_API_KEY       – your OpenAI key
+#   LANGFUSE_PUBLIC_KEY  – from Langfuse project settings
+#   LANGFUSE_SECRET_KEY  – from Langfuse project settings
+#   LANGFUSE_BASE_URL    – https://cloud.langfuse.com (EU) or https://us.cloud.langfuse.com (US)
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
-LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
+client   = OpenAI()       # Langfuse-wrapped OpenAI client; auto-traces all completions
+langfuse = get_client()   # v3+ singleton — use this instead of Langfuse()
 
-# ─────────────────────────────────────────────
-# Initialize OpenAI client
-# ─────────────────────────────────────────────
-client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ─────────────────────────────────────────────
-# Initialize Langfuse
-# ─────────────────────────────────────────────
-langfuse = Langfuse(
-    public_key=LANGFUSE_PUBLIC_KEY,
-    secret_key=LANGFUSE_SECRET_KEY,
-    host="https://cloud.langfuse.com"  # default cloud
-)
+# ------------------ TOOL: SAFE COMMAND ------------------
+def run_command(command):
+    print(f"🔧 Tool called: run_command({command})")
 
-# ─────────────────────────────────────────────
-# Weather Agent Function
-# ─────────────────────────────────────────────
-def get_weather_response(user_query: str):
-    """
-    Generates a weather-related response using OpenAI
-    and logs the interaction in Langfuse.
-    """
+    blocked = ["del", "rm", "shutdown", "format"]
 
-    # Create a trace
-    trace = langfuse.trace(
-        name="weather-agent",
-        input={"query": user_query}
-    )
+    if any(b in command.lower() for b in blocked):
+        return "Error: Unsafe command"
 
+    result = os.system(command)
+
+    if result == 0:
+        return "Command executed successfully"
+    else:
+        return "Error executing command"
+
+
+# ------------------ TOOL: CREATE FILE ------------------
+def create_file(filename: str):
+    print(f"🔧 Tool called: create_file({filename})")
     try:
-        # Call OpenAI
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a helpful weather assistant."},
-                {"role": "user", "content": user_query}
-            ],
-            temperature=0.7
-        )
-
-        answer = response.choices[0].message.content
-
-        # Log output to Langfuse
-        trace.update(
-            output={"response": answer}
-        )
-
-        return answer
-
+        with open(filename, "w") as f:
+            pass
+        return f"{filename} created successfully"
     except Exception as e:
-        trace.update(
-            output={"error": str(e)}
-        )
         return f"Error: {str(e)}"
 
 
-# ─────────────────────────────────────────────
-# Main Execution
-# ─────────────────────────────────────────────
-if __name__ == "__main__":
-    print("🌦️ Weather Agent (Langfuse + OpenAI)")
-    print("Type 'exit' to quit\n")
+# ------------------ TOOL: WEATHER ------------------
+def get_weather(city: str):
+    print(f"🔧 Tool called: get_weather({city})")
 
-    while True:
-        user_input = input("Ask weather: ")
+    try:
+        city = city.strip()
 
-        if user_input.lower() == "exit":
-            break
+        geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}"
+        geo_res = requests.get(geo_url, timeout=10).json()
 
-        result = get_weather_response(user_input)
-        print("\n🤖:", result)
-        print("-" * 50)
+        if "results" not in geo_res:
+            return f"Error: Could not find location for {city}"
+
+        lat = geo_res["results"][0]["latitude"]
+        lon = geo_res["results"][0]["longitude"]
+
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+        weather_res = requests.get(weather_url, timeout=10).json()
+
+        temp = weather_res["current_weather"]["temperature"]
+
+        return str(temp)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+# ------------------ TOOL: CONVERSION ------------------
+def celsius_to_fahrenheit(temp: str):
+    print(f"🔧 Tool called: celsius_to_fahrenheit({temp})")
+
+    try:
+        c = float(temp)
+        f = (c * 9/5) + 32
+        return f"{round(f, 2)}°F"
+    except:
+        return "Error: Invalid temperature"
+
+
+# ------------------ AVAILABLE TOOLS ------------------
+available_tools = {
+    "get_weather": {
+        "fn": get_weather,
+        "description": "Returns temperature in Celsius"
+    },
+    "celsius_to_fahrenheit": {
+        "fn": celsius_to_fahrenheit,
+        "description": "Converts Celsius to Fahrenheit"
+    },
+    "run_command": {
+        "fn": run_command,
+        "description": "Executes safe system commands"
+    },
+    "create_file": {
+        "fn": create_file,
+        "description": "Creates a file in current directory"
+    }
+}
+
+# ------------------ SYSTEM PROMPT ------------------
+system_prompt = """
+You are a helpful AI assistant.
+
+Follow steps: plan -> action -> observe -> output
+
+Rules:
+- Return JSON only
+- One step at a time
+- Always use tools if needed
+- Do NOT use OS commands like touch for file creation
+- Use create_file tool to create files
+- If user asks for Fahrenheit, convert Celsius using celsius_to_fahrenheit
+
+JSON format:
+{
+ "step": "plan/action/observe/output",
+ "content": "text",
+ "function": "function_name_if_action",
+ "input": "input_for_function"
+}
+
+Available tools:
+- get_weather(city) → returns temperature in Celsius
+- celsius_to_fahrenheit(temp) → converts to Fahrenheit
+- run_command(command) → executes safe system commands
+- create_file(filename) → creates a file
+
+Example:
+User: Temperature of Bangalore in Fahrenheit?
+
+{"step":"plan","content":"User wants temperature in Fahrenheit"}
+{"step":"action","function":"get_weather","input":"Bangalore"}
+{"step":"observe","output":"30"}
+{"step":"action","function":"celsius_to_fahrenheit","input":"30"}
+{"step":"observe","output":"86°F"}
+{"step":"output","content":"Temperature in Bangalore is 86°F"}
+"""
+
+# ------------------ MESSAGE MEMORY ------------------
+# Kept outside the loop so conversation history persists across queries
+messages = [
+    {"role": "system", "content": system_prompt}
+]
+
+print("💬 Agent ready. Type 'exit' to quit.\n")
+
+# ------------------ SESSION LOOP ------------------
+while True:
+
+    # ------------------ USER INPUT ------------------
+    user_query = input("> ").strip()
+
+    if user_query.lower() == "exit":
+        print("👋 Goodbye!")
+        break
+
+    if not user_query:
+        continue
+
+    messages.append({"role": "user", "content": user_query})
+
+    # ------------------ AGENT LOOP (wrapped in a Langfuse trace span) ------------------
+    # Each query gets its own trace; conversation history still accumulates in messages[].
+    with langfuse.start_as_current_observation(
+        as_type="span",
+        name="agent-session",
+    ) as root_span:
+
+        with propagate_attributes(
+            trace_name="agent-session",
+            metadata={"query": user_query},
+        ):
+
+            while True:
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    response_format={"type": "json_object"},
+                    messages=messages,
+                )
+
+                content = response.choices[0].message.content
+                parsed_output = json.loads(content)
+
+                messages.append({"role": "assistant", "content": content})
+
+                step = parsed_output.get("step")
+
+                # ------------------ PLAN ------------------
+                if step == "plan":
+                    print(f"🧠: {parsed_output.get('content')}")
+                    continue
+
+                # ------------------ ACTION ------------------
+                if step == "action":
+                    tool_name = parsed_output.get("function")
+                    tool_input = parsed_output.get("input")
+
+                    if tool_name in available_tools:
+                        with langfuse.start_as_current_observation(
+                            as_type="span",
+                            name=f"tool:{tool_name}",
+                            input={"input": tool_input},
+                        ) as tool_span:
+                            output = available_tools[tool_name]["fn"](tool_input)
+                            print(f"🔍: {output}")
+                            tool_span.update(output={"result": output})
+
+                        observation = {"step": "observe", "output": output}
+                        messages.append({
+                            "role": "assistant",
+                            "content": json.dumps(observation)
+                        })
+                    else:
+                        print("❌ Unknown tool:", tool_name)
+                        root_span.update(output={"error": f"Unknown tool: {tool_name}"})
+                        break
+
+                    continue
+
+                # ------------------ OUTPUT ------------------
+                if step == "output":
+                    final_answer = parsed_output.get("content")
+                    print(f"🤖: {final_answer}\n")
+                    root_span.update(output={"answer": final_answer})
+                    break
+
+# Flush ensures buffered events are sent before the process exits (important for short-lived scripts)
+langfuse.flush()
