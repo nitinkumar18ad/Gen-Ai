@@ -77,7 +77,7 @@ def solve_coding_question(state: State):
 
 
 def solve_simple_question(state: State):
-    state["ai_message"] = "Please ask a coding question"
+    state["ai_message:-"] = "Please ask a coding question"
     return state
 
 
