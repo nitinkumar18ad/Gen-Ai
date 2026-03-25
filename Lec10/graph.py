@@ -72,7 +72,7 @@ def route_edge(state: State) -> Literal["solve_coding_question", "solve_simple_q
 # Nodes
 # -------------------------------
 def solve_coding_question(state: State):
-    state["ai_message"] = "Here is your coding question answer"
+    state["ai_message:-"] = "Here is your coding question answer"
     return state
 
 
