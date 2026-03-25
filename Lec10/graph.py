@@ -51,7 +51,7 @@ def detect_query(state: State):
     )
 
     parsed = result.choices[0].message.parsed
-    print("Parsed:", parsed)
+    print("Parsed:-", parsed)
 
     # ✅ Use LLM output instead of dummy logic
     state["is_coding_question"] = parsed.is_question_ai
