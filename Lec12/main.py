@@ -17,6 +17,7 @@ def main():
         r = sr.Recognizer()
         with sr.Microphone() as source:
             r.adjust_for_ambient_noise(source) 
+            r.pause_threshold = 4
             print("Say something!")
             audio = r.listen(source)
 
