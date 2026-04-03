@@ -1,0 +1,12 @@
+﻿{
+  "code-runner.runInTerminal": true,
+  "code-runner.saveFileBeforeRun": true,
+  "code-runner.saveAllFilesBeforeRun": true,
+  "code-runner.executorMap": {
+    "python": "\"$pythonPath\" -u"
+  },
+  "code-runner.executorMapByFileExtension": {
+    ".py": "\"$pythonPath\" -u"
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}\\venv\\Scripts\\python.exe"
+}
