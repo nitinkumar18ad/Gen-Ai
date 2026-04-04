@@ -150,7 +150,7 @@ def main():
             print(f"   [OK] Error caught: {error_response.get('error')}")
 
         print("\n" + "=" * 60)
-        print("[OK] All tests passed successfully!")
+        print("[OK] All tests passed successfully!!!")
         print("=" * 60)
 
     except AssertionError as e:
