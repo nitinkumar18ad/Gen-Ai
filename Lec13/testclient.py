@@ -84,7 +84,7 @@ class MCPClient:
 
 def main():
     print("=" * 60)
-    print("Math MCP Server - Test Client")
+    print("Math MCP Server -> Test Client")
     print("=" * 60)
 
     # Server path
