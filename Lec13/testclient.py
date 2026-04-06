@@ -144,7 +144,7 @@ def main():
         print(f"   [OK] Result: {result}")
         assert result == 5, f"Expected 5, got {result}"
 
-        print("\n8. Testing error handling (invalid tool)...")
+        print("\n8. Testing error handling (invalid tool).....")
         error_response = client.call_tool("invalid_tool", {})
         if error_response.get("type") == "error":
             print(f"   [OK] Error caught: {error_response.get('error')}")
