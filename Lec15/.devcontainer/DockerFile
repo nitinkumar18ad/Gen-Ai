@@ -1,0 +1,35 @@
+# Base image
+FROM python:3.11-slim
+
+# Environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    nodejs \
+    npm \
+    && apt-get clean
+
+# Set working directory
+WORKDIR /workspace
+
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Install Python packages
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    numpy \
+    pandas \
+    scikit-learn \
+    jupyter \
+    openai \
+    langchain
+
+# Keep container alive
+CMD ["sleep", "infinity"]
