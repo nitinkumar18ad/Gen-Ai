@@ -1,6 +1,6 @@
 app:
   build:
-    context: ..
+    context: ...
     dockerfile: .devcontainer/Dockerfile
 
   volumes:
