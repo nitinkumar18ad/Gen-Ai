@@ -32,4 +32,4 @@ RUN pip install --no-cache-dir \
     langchain
 
 # Keep container alive
-CMD ["sleep", "infinity"]
+CMD ["sleep", "infinity."]
